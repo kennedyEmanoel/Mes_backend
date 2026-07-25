@@ -6,8 +6,9 @@ import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import { StepsModule } from './steps/steps.module';
 import { ProductionOrderModule } from './production-order/production-order.module';
-import { AutoRecordModule } from './auto-record/auto-record.module';
 import { ManualRecordModule } from './manual-record/manual-record.module';
+import { BranchesModule } from './branches/branches.module';
+import { ProductsModule } from './products/products.module';
 
 @Module({
   imports: [
@@ -31,8 +32,9 @@ import { ManualRecordModule } from './manual-record/manual-record.module';
     UsersModule,
     StepsModule,
     ProductionOrderModule,
-    AutoRecordModule,
     ManualRecordModule,
+    BranchesModule,
+    ProductsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

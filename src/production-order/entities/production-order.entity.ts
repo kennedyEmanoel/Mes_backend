@@ -3,7 +3,10 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  ManyToOne,
 } from 'typeorm';
+import { Branch } from '../../branches/entities/branch.entity';
+import { Product } from '../../products/entities/product.entity';
 
 @Entity('production_orders')
 export class ProductionOrder {
@@ -13,8 +16,11 @@ export class ProductionOrder {
   @Column({ unique: true })
   op_number: string;
 
-  @Column()
-  raw_material: string;
+  @ManyToOne(() => Branch, (branch) => branch.productionOrders)
+  branch: Branch;
+
+  @ManyToOne(() => Product, (product) => product.productionOrders)
+  product: Product;
 
   @Column({ type: 'timestamp', nullable: true })
   start_date: Date;

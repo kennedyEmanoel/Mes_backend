@@ -3,7 +3,9 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  ManyToOne,
 } from 'typeorm';
+import { Branch } from '../../branches/entities/branch.entity';
 
 @Entity('users')
 export class User {
@@ -27,4 +29,7 @@ export class User {
 
   @CreateDateColumn()
   created_at: Date;
+
+  @ManyToOne(() => Branch, (branch) => branch.users)
+  branch: Branch;
 }
