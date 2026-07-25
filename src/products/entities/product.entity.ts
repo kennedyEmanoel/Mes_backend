@@ -24,6 +24,9 @@ export class Product {
   @CreateDateColumn()
   created_at: Date;
 
-  @OneToMany(() => ProductionOrder, (productionOrder) => productionOrder.product)
+  @OneToMany(
+    () => ProductionOrder,
+    (productionOrder) => productionOrder.product,
+  )
   productionOrders: ProductionOrder[];
 }

@@ -3,9 +3,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProductionOrderService } from './production-order.service';
 import { ProductionOrderController } from './production-order.controller';
 import { ProductionOrder } from './entities/production-order.entity';
+import { Branch } from '../branches/entities/branch.entity';
+import { Product } from '../products/entities/product.entity';
+
 @Module({
-  // 2. Avisando o TypeORM para usar essa entidade
-  imports: [TypeOrmModule.forFeature([ProductionOrder])],
+  imports: [TypeOrmModule.forFeature([ProductionOrder, Branch, Product])],
   controllers: [ProductionOrderController],
   providers: [ProductionOrderService],
 })

@@ -1,26 +1,42 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
+import { Branch } from './entities/branch.entity';
 
 @Injectable()
 export class BranchesService {
+  constructor(
+    @InjectRepository(Branch)
+    private readonly branchRepository: Repository<Branch>,
+  ) {}
+
   create(createBranchDto: CreateBranchDto) {
-    return 'This action adds a new branch';
+    const branch = this.branchRepository.create(createBranchDto);
+    return this.branchRepository.save(branch);
   }
 
   findAll() {
-    return `This action returns all branches`;
+    return this.branchRepository.find();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} branch`;
+  async findOne(id: number) {
+    const branch = await this.branchRepository.findOneBy({ id });
+    if (!branch) {
+      throw new NotFoundException(`Branch #${id} not found`);
+    }
+    return branch;
   }
 
-  update(id: number, updateBranchDto: UpdateBranchDto) {
-    return `This action updates a #${id} branch`;
+  async update(id: number, updateBranchDto: UpdateBranchDto) {
+    const branch = await this.findOne(id);
+    Object.assign(branch, updateBranchDto);
+    return this.branchRepository.save(branch);
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} branch`;
+  async remove(id: number) {
+    const branch = await this.findOne(id);
+    return this.branchRepository.remove(branch);
   }
 }
