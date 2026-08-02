@@ -2,12 +2,20 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateManualRecordDto } from './dto/create-manual-record.dto';
 import { UpdateManualRecordDto } from './dto/update-manual-record.dto';
+import type { AuthenticatedUser } from '../auth/decorators/current-user.decorator';
+import {
+  branchScope,
+  productionOrderBranchScope,
+} from '../auth/utils/branch-scope.util';
 
 @Injectable()
 export class ManualRecordService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createManualRecordDto: CreateManualRecordDto) {
+  async create(
+    createManualRecordDto: CreateManualRecordDto,
+    currentUser: AuthenticatedUser,
+  ) {
     const {
       hour_range,
       produced_quantity,
@@ -17,7 +25,7 @@ export class ManualRecordService {
       userId,
     } = createManualRecordDto;
 
-    await this.findProductionOrderOrThrow(productionOrderId);
+    await this.findProductionOrderOrThrow(productionOrderId, currentUser);
     await this.findStepOrThrow(stepId);
     if (userId) {
       await this.findUserOrThrow(userId);
@@ -36,15 +44,16 @@ export class ManualRecordService {
     });
   }
 
-  findAll() {
+  findAll(currentUser: AuthenticatedUser) {
     return this.prisma.manualRecord.findMany({
+      where: productionOrderBranchScope(currentUser),
       include: { productionOrder: true, step: true, user: true },
     });
   }
 
-  async findOne(id: number) {
-    const manualRecord = await this.prisma.manualRecord.findUnique({
-      where: { id },
+  async findOne(id: number, currentUser: AuthenticatedUser) {
+    const manualRecord = await this.prisma.manualRecord.findFirst({
+      where: { id, ...productionOrderBranchScope(currentUser) },
       include: { productionOrder: true, step: true, user: true },
     });
     if (!manualRecord) {
@@ -53,8 +62,12 @@ export class ManualRecordService {
     return manualRecord;
   }
 
-  async update(id: number, updateManualRecordDto: UpdateManualRecordDto) {
-    await this.findOne(id);
+  async update(
+    id: number,
+    updateManualRecordDto: UpdateManualRecordDto,
+    currentUser: AuthenticatedUser,
+  ) {
+    await this.findOne(id, currentUser);
     const {
       hour_range,
       produced_quantity,
@@ -65,7 +78,7 @@ export class ManualRecordService {
     } = updateManualRecordDto;
 
     if (productionOrderId) {
-      await this.findProductionOrderOrThrow(productionOrderId);
+      await this.findProductionOrderOrThrow(productionOrderId, currentUser);
     }
     if (stepId) {
       await this.findStepOrThrow(stepId);
@@ -88,14 +101,17 @@ export class ManualRecordService {
     });
   }
 
-  async remove(id: number) {
-    await this.findOne(id);
+  async remove(id: number, currentUser: AuthenticatedUser) {
+    await this.findOne(id, currentUser);
     return this.prisma.manualRecord.delete({ where: { id } });
   }
 
-  private async findProductionOrderOrThrow(productionOrderId: number) {
-    const productionOrder = await this.prisma.productionOrder.findUnique({
-      where: { id: productionOrderId },
+  private async findProductionOrderOrThrow(
+    productionOrderId: number,
+    currentUser: AuthenticatedUser,
+  ) {
+    const productionOrder = await this.prisma.productionOrder.findFirst({
+      where: { id: productionOrderId, ...branchScope(currentUser) },
     });
     if (!productionOrder) {
       throw new NotFoundException(

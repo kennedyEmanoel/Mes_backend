@@ -10,33 +10,52 @@ import {
 import { StepsService } from './steps.service';
 import { CreateStepDto } from './dto/create-step.dto';
 import { UpdateStepDto } from './dto/update-step.dto';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/decorators/current-user.decorator';
 
 @Controller('steps')
 export class StepsController {
   constructor(private readonly stepsService: StepsService) {}
 
+  @Roles('manager', 'analyst', 'admin')
   @Post()
-  create(@Body() createStepDto: CreateStepDto) {
-    return this.stepsService.create(createStepDto);
+  create(
+    @Body() createStepDto: CreateStepDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.stepsService.create(createStepDto, currentUser);
   }
 
   @Get()
-  findAll() {
-    return this.stepsService.findAll();
+  findAll(@CurrentUser() currentUser: AuthenticatedUser) {
+    return this.stepsService.findAll(currentUser);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.stepsService.findOne(+id);
+  findOne(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.stepsService.findOne(+id, currentUser);
   }
 
+  @Roles('manager', 'analyst', 'admin')
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateStepDto: UpdateStepDto) {
-    return this.stepsService.update(+id, updateStepDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateStepDto: UpdateStepDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.stepsService.update(+id, updateStepDto, currentUser);
   }
 
+  @Roles('manager', 'analyst', 'admin')
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.stepsService.remove(+id);
+  remove(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.stepsService.remove(+id, currentUser);
   }
 }

@@ -2,16 +2,21 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateStepDto } from './dto/create-step.dto';
 import { UpdateStepDto } from './dto/update-step.dto';
+import type { AuthenticatedUser } from '../auth/decorators/current-user.decorator';
+import {
+  branchScope,
+  productionOrderBranchScope,
+} from '../auth/utils/branch-scope.util';
 
 @Injectable()
 export class StepsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createStepDto: CreateStepDto) {
+  async create(createStepDto: CreateStepDto, currentUser: AuthenticatedUser) {
     const { name, order_index, target_quantity, productionOrderId } =
       createStepDto;
 
-    await this.findProductionOrderOrThrow(productionOrderId);
+    await this.findProductionOrderOrThrow(productionOrderId, currentUser);
 
     return this.prisma.step.create({
       data: {
@@ -24,13 +29,16 @@ export class StepsService {
     });
   }
 
-  findAll() {
-    return this.prisma.step.findMany({ include: { productionOrder: true } });
+  findAll(currentUser: AuthenticatedUser) {
+    return this.prisma.step.findMany({
+      where: productionOrderBranchScope(currentUser),
+      include: { productionOrder: true },
+    });
   }
 
-  async findOne(id: number) {
-    const step = await this.prisma.step.findUnique({
-      where: { id },
+  async findOne(id: number, currentUser: AuthenticatedUser) {
+    const step = await this.prisma.step.findFirst({
+      where: { id, ...productionOrderBranchScope(currentUser) },
       include: { productionOrder: true },
     });
     if (!step) {
@@ -39,13 +47,17 @@ export class StepsService {
     return step;
   }
 
-  async update(id: number, updateStepDto: UpdateStepDto) {
-    await this.findOne(id);
+  async update(
+    id: number,
+    updateStepDto: UpdateStepDto,
+    currentUser: AuthenticatedUser,
+  ) {
+    await this.findOne(id, currentUser);
     const { name, order_index, target_quantity, productionOrderId } =
       updateStepDto;
 
     if (productionOrderId) {
-      await this.findProductionOrderOrThrow(productionOrderId);
+      await this.findProductionOrderOrThrow(productionOrderId, currentUser);
     }
 
     return this.prisma.step.update({
@@ -60,14 +72,17 @@ export class StepsService {
     });
   }
 
-  async remove(id: number) {
-    await this.findOne(id);
+  async remove(id: number, currentUser: AuthenticatedUser) {
+    await this.findOne(id, currentUser);
     return this.prisma.step.delete({ where: { id } });
   }
 
-  private async findProductionOrderOrThrow(productionOrderId: number) {
-    const productionOrder = await this.prisma.productionOrder.findUnique({
-      where: { id: productionOrderId },
+  private async findProductionOrderOrThrow(
+    productionOrderId: number,
+    currentUser: AuthenticatedUser,
+  ) {
+    const productionOrder = await this.prisma.productionOrder.findFirst({
+      where: { id: productionOrderId, ...branchScope(currentUser) },
     });
     if (!productionOrder) {
       throw new NotFoundException(

@@ -1,7 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { AuthenticatedUser } from '../auth/decorators/current-user.decorator';
+import { branchScope } from '../auth/utils/branch-scope.util';
+
+const SALT_ROUNDS = 10;
 
 @Injectable()
 export class UsersService {
@@ -15,25 +20,30 @@ export class UsersService {
       await this.findBranchOrThrow(branch_id);
     }
 
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
     return this.prisma.user.create({
       data: {
         name,
         role,
         email,
-        password,
+        password: hashedPassword,
         registrationNumber: registration_number,
         branchId: branch_id,
       },
     });
   }
 
-  findAll() {
-    return this.prisma.user.findMany({ include: { branch: true } });
+  findAll(currentUser: AuthenticatedUser) {
+    return this.prisma.user.findMany({
+      where: branchScope(currentUser),
+      include: { branch: true },
+    });
   }
 
-  async findOne(id: number) {
-    const user = await this.prisma.user.findUnique({
-      where: { id },
+  async findOne(id: number, currentUser: AuthenticatedUser) {
+    const user = await this.prisma.user.findFirst({
+      where: { id, ...branchScope(currentUser) },
       include: { branch: true },
     });
     if (!user) {
@@ -42,9 +52,13 @@ export class UsersService {
     return user;
   }
 
-  async update(id: number, updateUserDto: UpdateUserDto) {
-    await this.findOne(id);
-    const { branch_id, registration_number, ...rest } = updateUserDto;
+  async update(
+    id: number,
+    updateUserDto: UpdateUserDto,
+    currentUser: AuthenticatedUser,
+  ) {
+    await this.findOne(id, currentUser);
+    const { branch_id, registration_number, password, ...rest } = updateUserDto;
 
     if (branch_id) {
       await this.findBranchOrThrow(branch_id);
@@ -58,12 +72,15 @@ export class UsersService {
           ? { registrationNumber: registration_number }
           : {}),
         ...(branch_id ? { branchId: branch_id } : {}),
+        ...(password
+          ? { password: await bcrypt.hash(password, SALT_ROUNDS) }
+          : {}),
       },
     });
   }
 
-  async remove(id: number) {
-    await this.findOne(id);
+  async remove(id: number, currentUser: AuthenticatedUser) {
+    await this.findOne(id, currentUser);
     return this.prisma.user.delete({ where: { id } });
   }
 

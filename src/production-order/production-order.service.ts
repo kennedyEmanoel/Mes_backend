@@ -2,6 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductionOrderDto } from './dto/create-production-order.dto';
 import { UpdateProductionOrderDto } from './dto/update-production-order.dto';
+import type { AuthenticatedUser } from '../auth/decorators/current-user.decorator';
+import { branchScope } from '../auth/utils/branch-scope.util';
 
 @Injectable()
 export class ProductionOrderService {
@@ -35,15 +37,16 @@ export class ProductionOrderService {
     });
   }
 
-  findAll() {
+  findAll(currentUser: AuthenticatedUser) {
     return this.prisma.productionOrder.findMany({
+      where: branchScope(currentUser),
       include: { branch: true, product: true },
     });
   }
 
-  async findOne(id: number) {
-    const productionOrder = await this.prisma.productionOrder.findUnique({
-      where: { id },
+  async findOne(id: number, currentUser: AuthenticatedUser) {
+    const productionOrder = await this.prisma.productionOrder.findFirst({
+      where: { id, ...branchScope(currentUser) },
       include: { branch: true, product: true },
     });
     if (!productionOrder) {
@@ -52,8 +55,12 @@ export class ProductionOrderService {
     return productionOrder;
   }
 
-  async update(id: number, updateProductionOrderDto: UpdateProductionOrderDto) {
-    await this.findOne(id);
+  async update(
+    id: number,
+    updateProductionOrderDto: UpdateProductionOrderDto,
+    currentUser: AuthenticatedUser,
+  ) {
+    await this.findOne(id, currentUser);
     const {
       op_number,
       branch_id,
@@ -86,8 +93,8 @@ export class ProductionOrderService {
     });
   }
 
-  async remove(id: number) {
-    await this.findOne(id);
+  async remove(id: number, currentUser: AuthenticatedUser) {
+    await this.findOne(id, currentUser);
     return this.prisma.productionOrder.delete({ where: { id } });
   }
 
