@@ -1,43 +1,50 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductionOrderDto } from './dto/create-production-order.dto';
 import { UpdateProductionOrderDto } from './dto/update-production-order.dto';
-import { ProductionOrder } from './entities/production-order.entity';
-import { Branch } from '../branches/entities/branch.entity';
-import { Product } from '../products/entities/product.entity';
 
 @Injectable()
 export class ProductionOrderService {
-  constructor(
-    @InjectRepository(ProductionOrder)
-    private readonly productionOrderRepository: Repository<ProductionOrder>,
-    @InjectRepository(Branch)
-    private readonly branchRepository: Repository<Branch>,
-    @InjectRepository(Product)
-    private readonly productRepository: Repository<Product>,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(createProductionOrderDto: CreateProductionOrderDto) {
-    const { branch_id, product_id, ...rest } = createProductionOrderDto;
+    const {
+      op_number,
+      branch_id,
+      product_id,
+      start_date,
+      estimated_end_date,
+      target_quantity,
+      status,
+    } = createProductionOrderDto;
 
-    const productionOrder = this.productionOrderRepository.create(rest);
-    productionOrder.branch = await this.findBranchOrThrow(branch_id);
-    productionOrder.product = await this.findProductOrThrow(product_id);
+    await this.findBranchOrThrow(branch_id);
+    await this.findProductOrThrow(product_id);
 
-    return this.productionOrderRepository.save(productionOrder);
+    return this.prisma.productionOrder.create({
+      data: {
+        opNumber: op_number,
+        branchId: branch_id,
+        productId: product_id,
+        startDate: start_date,
+        estimatedEndDate: estimated_end_date,
+        targetQuantity: target_quantity,
+        status,
+      },
+      include: { branch: true, product: true },
+    });
   }
 
   findAll() {
-    return this.productionOrderRepository.find({
-      relations: ['branch', 'product'],
+    return this.prisma.productionOrder.findMany({
+      include: { branch: true, product: true },
     });
   }
 
   async findOne(id: number) {
-    const productionOrder = await this.productionOrderRepository.findOne({
+    const productionOrder = await this.prisma.productionOrder.findUnique({
       where: { id },
-      relations: ['branch', 'product'],
+      include: { branch: true, product: true },
     });
     if (!productionOrder) {
       throw new NotFoundException(`ProductionOrder #${id} not found`);
@@ -46,27 +53,48 @@ export class ProductionOrderService {
   }
 
   async update(id: number, updateProductionOrderDto: UpdateProductionOrderDto) {
-    const productionOrder = await this.findOne(id);
-    const { branch_id, product_id, ...rest } = updateProductionOrderDto;
-    Object.assign(productionOrder, rest);
+    await this.findOne(id);
+    const {
+      op_number,
+      branch_id,
+      product_id,
+      start_date,
+      estimated_end_date,
+      target_quantity,
+      status,
+    } = updateProductionOrderDto;
 
     if (branch_id) {
-      productionOrder.branch = await this.findBranchOrThrow(branch_id);
+      await this.findBranchOrThrow(branch_id);
     }
     if (product_id) {
-      productionOrder.product = await this.findProductOrThrow(product_id);
+      await this.findProductOrThrow(product_id);
     }
 
-    return this.productionOrderRepository.save(productionOrder);
+    return this.prisma.productionOrder.update({
+      where: { id },
+      data: {
+        opNumber: op_number,
+        branchId: branch_id,
+        productId: product_id,
+        startDate: start_date,
+        estimatedEndDate: estimated_end_date,
+        targetQuantity: target_quantity,
+        status,
+      },
+      include: { branch: true, product: true },
+    });
   }
 
   async remove(id: number) {
-    const productionOrder = await this.findOne(id);
-    return this.productionOrderRepository.remove(productionOrder);
+    await this.findOne(id);
+    return this.prisma.productionOrder.delete({ where: { id } });
   }
 
   private async findBranchOrThrow(branchId: number) {
-    const branch = await this.branchRepository.findOneBy({ id: branchId });
+    const branch = await this.prisma.branch.findUnique({
+      where: { id: branchId },
+    });
     if (!branch) {
       throw new NotFoundException(`Branch #${branchId} not found`);
     }
@@ -74,7 +102,9 @@ export class ProductionOrderService {
   }
 
   private async findProductOrThrow(productId: number) {
-    const product = await this.productRepository.findOneBy({ id: productId });
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+    });
     if (!product) {
       throw new NotFoundException(`Product #${productId} not found`);
     }

@@ -1,52 +1,51 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateManualRecordDto } from './dto/create-manual-record.dto';
 import { UpdateManualRecordDto } from './dto/update-manual-record.dto';
-import { ManualRecord } from './entities/manual-record.entity';
-import { ProductionOrder } from '../production-order/entities/production-order.entity';
-import { Step } from '../steps/entities/step.entity';
-import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class ManualRecordService {
-  constructor(
-    @InjectRepository(ManualRecord)
-    private readonly manualRecordRepository: Repository<ManualRecord>,
-    @InjectRepository(ProductionOrder)
-    private readonly productionOrderRepository: Repository<ProductionOrder>,
-    @InjectRepository(Step)
-    private readonly stepRepository: Repository<Step>,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(createManualRecordDto: CreateManualRecordDto) {
-    const { productionOrderId, stepId, userId, ...rest } =
-      createManualRecordDto;
+    const {
+      hour_range,
+      produced_quantity,
+      defect_quantity,
+      productionOrderId,
+      stepId,
+      userId,
+    } = createManualRecordDto;
 
-    const manualRecord = this.manualRecordRepository.create(rest);
-    manualRecord.productionOrder =
-      await this.findProductionOrderOrThrow(productionOrderId);
-    manualRecord.step = await this.findStepOrThrow(stepId);
-
+    await this.findProductionOrderOrThrow(productionOrderId);
+    await this.findStepOrThrow(stepId);
     if (userId) {
-      manualRecord.user = await this.findUserOrThrow(userId);
+      await this.findUserOrThrow(userId);
     }
 
-    return this.manualRecordRepository.save(manualRecord);
+    return this.prisma.manualRecord.create({
+      data: {
+        hourRange: hour_range,
+        producedQuantity: produced_quantity,
+        defectQuantity: defect_quantity,
+        productionOrderId,
+        stepId,
+        userId,
+      },
+      include: { productionOrder: true, step: true, user: true },
+    });
   }
 
   findAll() {
-    return this.manualRecordRepository.find({
-      relations: ['productionOrder', 'step', 'user'],
+    return this.prisma.manualRecord.findMany({
+      include: { productionOrder: true, step: true, user: true },
     });
   }
 
   async findOne(id: number) {
-    const manualRecord = await this.manualRecordRepository.findOne({
+    const manualRecord = await this.prisma.manualRecord.findUnique({
       where: { id },
-      relations: ['productionOrder', 'step', 'user'],
+      include: { productionOrder: true, step: true, user: true },
     });
     if (!manualRecord) {
       throw new NotFoundException(`ManualRecord #${id} not found`);
@@ -55,33 +54,48 @@ export class ManualRecordService {
   }
 
   async update(id: number, updateManualRecordDto: UpdateManualRecordDto) {
-    const manualRecord = await this.findOne(id);
-    const { productionOrderId, stepId, userId, ...rest } =
-      updateManualRecordDto;
-    Object.assign(manualRecord, rest);
+    await this.findOne(id);
+    const {
+      hour_range,
+      produced_quantity,
+      defect_quantity,
+      productionOrderId,
+      stepId,
+      userId,
+    } = updateManualRecordDto;
 
     if (productionOrderId) {
-      manualRecord.productionOrder =
-        await this.findProductionOrderOrThrow(productionOrderId);
+      await this.findProductionOrderOrThrow(productionOrderId);
     }
     if (stepId) {
-      manualRecord.step = await this.findStepOrThrow(stepId);
+      await this.findStepOrThrow(stepId);
     }
     if (userId) {
-      manualRecord.user = await this.findUserOrThrow(userId);
+      await this.findUserOrThrow(userId);
     }
 
-    return this.manualRecordRepository.save(manualRecord);
+    return this.prisma.manualRecord.update({
+      where: { id },
+      data: {
+        hourRange: hour_range,
+        producedQuantity: produced_quantity,
+        defectQuantity: defect_quantity,
+        productionOrderId,
+        stepId,
+        userId,
+      },
+      include: { productionOrder: true, step: true, user: true },
+    });
   }
 
   async remove(id: number) {
-    const manualRecord = await this.findOne(id);
-    return this.manualRecordRepository.remove(manualRecord);
+    await this.findOne(id);
+    return this.prisma.manualRecord.delete({ where: { id } });
   }
 
   private async findProductionOrderOrThrow(productionOrderId: number) {
-    const productionOrder = await this.productionOrderRepository.findOneBy({
-      id: productionOrderId,
+    const productionOrder = await this.prisma.productionOrder.findUnique({
+      where: { id: productionOrderId },
     });
     if (!productionOrder) {
       throw new NotFoundException(
@@ -92,7 +106,7 @@ export class ManualRecordService {
   }
 
   private async findStepOrThrow(stepId: number) {
-    const step = await this.stepRepository.findOneBy({ id: stepId });
+    const step = await this.prisma.step.findUnique({ where: { id: stepId } });
     if (!step) {
       throw new NotFoundException(`Step #${stepId} not found`);
     }
@@ -100,7 +114,7 @@ export class ManualRecordService {
   }
 
   private async findUserOrThrow(userId: number) {
-    const user = await this.userRepository.findOneBy({ id: userId });
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException(`User #${userId} not found`);
     }

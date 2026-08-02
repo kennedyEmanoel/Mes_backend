@@ -13,6 +13,9 @@ RUN npm install
 # Copy the rest of the application files
 COPY . .
 
+# Generate the Prisma Client for the container's platform
+RUN npx prisma generate
+
 # Expose the application port
 EXPOSE 3000
 

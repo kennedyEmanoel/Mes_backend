@@ -1,28 +1,25 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { Product } from './entities/product.entity';
 
 @Injectable()
 export class ProductsService {
-  constructor(
-    @InjectRepository(Product)
-    private readonly productRepository: Repository<Product>,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   create(createProductDto: CreateProductDto) {
-    const product = this.productRepository.create(createProductDto);
-    return this.productRepository.save(product);
+    const { commercial_name, ...rest } = createProductDto;
+    return this.prisma.product.create({
+      data: { ...rest, commercialName: commercial_name },
+    });
   }
 
   findAll() {
-    return this.productRepository.find();
+    return this.prisma.product.findMany();
   }
 
   async findOne(id: number) {
-    const product = await this.productRepository.findOneBy({ id });
+    const product = await this.prisma.product.findUnique({ where: { id } });
     if (!product) {
       throw new NotFoundException(`Product #${id} not found`);
     }
@@ -30,13 +27,16 @@ export class ProductsService {
   }
 
   async update(id: number, updateProductDto: UpdateProductDto) {
-    const product = await this.findOne(id);
-    Object.assign(product, updateProductDto);
-    return this.productRepository.save(product);
+    await this.findOne(id);
+    const { commercial_name, ...rest } = updateProductDto;
+    return this.prisma.product.update({
+      where: { id },
+      data: { ...rest, commercialName: commercial_name },
+    });
   }
 
   async remove(id: number) {
-    const product = await this.findOne(id);
-    return this.productRepository.remove(product);
+    await this.findOne(id);
+    return this.prisma.product.delete({ where: { id } });
   }
 }

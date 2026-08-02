@@ -1,0 +1,104 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Branch {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  users            User[]
+  productionOrders ProductionOrder[]
+
+  @@map("branches")
+}
+
+model Product {
+  id             Int      @id @default(autoincrement())
+  sku            String
+  commercialName String   @map("commercial_name")
+  version        String?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  productionOrders ProductionOrder[]
+
+  @@map("products")
+}
+
+model User {
+  id                 Int      @id @default(autoincrement())
+  name               String
+  registrationNumber String   @unique @map("registration_number")
+  role               String   @default("operador")
+  email              String?  @unique
+  password           String
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  branchId Int?    @map("branchId")
+  branch   Branch? @relation(fields: [branchId], references: [id])
+
+  manualRecords ManualRecord[]
+
+  @@map("users")
+}
+
+model ProductionOrder {
+  id               Int       @id @default(autoincrement())
+  opNumber         String    @unique @map("op_number")
+  startDate        DateTime? @map("start_date")
+  estimatedEndDate DateTime? @map("estimated_end_date")
+  targetQuantity   Int       @map("target_quantity")
+  status           String    @default("Aberta")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  branchId Int    @map("branchId")
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  productId Int     @map("productId")
+  product   Product @relation(fields: [productId], references: [id])
+
+  steps         Step[]
+  manualRecords ManualRecord[]
+
+  @@map("production_orders")
+}
+
+model Step {
+  id             Int    @id @default(autoincrement())
+  name           String
+  orderIndex     Int    @map("order_index")
+  targetQuantity Int    @default(0) @map("target_quantity")
+
+  productionOrderId Int             @map("productionOrderId")
+  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+
+  manualRecords ManualRecord[]
+
+  @@map("steps")
+}
+
+model ManualRecord {
+  id               Int      @id @default(autoincrement())
+  hourRange        String   @map("hour_range")
+  producedQuantity Int      @map("produced_quantity")
+  defectQuantity   Int      @default(0) @map("defect_quantity")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  productionOrderId Int             @map("productionOrderId")
+  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+
+  stepId Int  @map("stepId")
+  step   Step @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  userId Int?  @map("userId")
+  user   User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("manual_records")
+}

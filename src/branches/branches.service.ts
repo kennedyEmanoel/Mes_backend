@@ -1,28 +1,22 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
-import { Branch } from './entities/branch.entity';
 
 @Injectable()
 export class BranchesService {
-  constructor(
-    @InjectRepository(Branch)
-    private readonly branchRepository: Repository<Branch>,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   create(createBranchDto: CreateBranchDto) {
-    const branch = this.branchRepository.create(createBranchDto);
-    return this.branchRepository.save(branch);
+    return this.prisma.branch.create({ data: createBranchDto });
   }
 
   findAll() {
-    return this.branchRepository.find();
+    return this.prisma.branch.findMany();
   }
 
   async findOne(id: number) {
-    const branch = await this.branchRepository.findOneBy({ id });
+    const branch = await this.prisma.branch.findUnique({ where: { id } });
     if (!branch) {
       throw new NotFoundException(`Branch #${id} not found`);
     }
@@ -30,13 +24,15 @@ export class BranchesService {
   }
 
   async update(id: number, updateBranchDto: UpdateBranchDto) {
-    const branch = await this.findOne(id);
-    Object.assign(branch, updateBranchDto);
-    return this.branchRepository.save(branch);
+    await this.findOne(id);
+    return this.prisma.branch.update({
+      where: { id },
+      data: updateBranchDto,
+    });
   }
 
   async remove(id: number) {
-    const branch = await this.findOne(id);
-    return this.branchRepository.remove(branch);
+    await this.findOne(id);
+    return this.prisma.branch.delete({ where: { id } });
   }
 }

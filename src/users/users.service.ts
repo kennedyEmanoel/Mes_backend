@@ -1,39 +1,40 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { User } from './entities/user.entity';
-import { Branch } from '../branches/entities/branch.entity';
 
 @Injectable()
 export class UsersService {
-  constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-    @InjectRepository(Branch)
-    private readonly branchRepository: Repository<Branch>,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(createUserDto: CreateUserDto) {
-    const { branch_id, ...rest } = createUserDto;
-    const user = this.userRepository.create(rest);
+    const { branch_id, registration_number, name, role, email, password } =
+      createUserDto;
 
     if (branch_id) {
-      user.branch = await this.findBranchOrThrow(branch_id);
+      await this.findBranchOrThrow(branch_id);
     }
 
-    return this.userRepository.save(user);
+    return this.prisma.user.create({
+      data: {
+        name,
+        role,
+        email,
+        password,
+        registrationNumber: registration_number,
+        branchId: branch_id,
+      },
+    });
   }
 
   findAll() {
-    return this.userRepository.find({ relations: ['branch'] });
+    return this.prisma.user.findMany({ include: { branch: true } });
   }
 
   async findOne(id: number) {
-    const user = await this.userRepository.findOne({
+    const user = await this.prisma.user.findUnique({
       where: { id },
-      relations: ['branch'],
+      include: { branch: true },
     });
     if (!user) {
       throw new NotFoundException(`User #${id} not found`);
@@ -42,24 +43,34 @@ export class UsersService {
   }
 
   async update(id: number, updateUserDto: UpdateUserDto) {
-    const user = await this.findOne(id);
-    const { branch_id, ...rest } = updateUserDto;
-    Object.assign(user, rest);
+    await this.findOne(id);
+    const { branch_id, registration_number, ...rest } = updateUserDto;
 
     if (branch_id) {
-      user.branch = await this.findBranchOrThrow(branch_id);
+      await this.findBranchOrThrow(branch_id);
     }
 
-    return this.userRepository.save(user);
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(registration_number
+          ? { registrationNumber: registration_number }
+          : {}),
+        ...(branch_id ? { branchId: branch_id } : {}),
+      },
+    });
   }
 
   async remove(id: number) {
-    const user = await this.findOne(id);
-    return this.userRepository.remove(user);
+    await this.findOne(id);
+    return this.prisma.user.delete({ where: { id } });
   }
 
   private async findBranchOrThrow(branchId: number) {
-    const branch = await this.branchRepository.findOneBy({ id: branchId });
+    const branch = await this.prisma.branch.findUnique({
+      where: { id: branchId },
+    });
     if (!branch) {
       throw new NotFoundException(`Branch #${branchId} not found`);
     }

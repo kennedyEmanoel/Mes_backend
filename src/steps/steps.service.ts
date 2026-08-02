@@ -1,38 +1,37 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateStepDto } from './dto/create-step.dto';
 import { UpdateStepDto } from './dto/update-step.dto';
-import { Step } from './entities/step.entity';
-import { ProductionOrder } from '../production-order/entities/production-order.entity';
 
 @Injectable()
 export class StepsService {
-  constructor(
-    @InjectRepository(Step)
-    private readonly stepRepository: Repository<Step>,
-    @InjectRepository(ProductionOrder)
-    private readonly productionOrderRepository: Repository<ProductionOrder>,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(createStepDto: CreateStepDto) {
-    const { productionOrderId, ...rest } = createStepDto;
+    const { name, order_index, target_quantity, productionOrderId } =
+      createStepDto;
 
-    const step = this.stepRepository.create(rest);
-    step.productionOrder =
-      await this.findProductionOrderOrThrow(productionOrderId);
+    await this.findProductionOrderOrThrow(productionOrderId);
 
-    return this.stepRepository.save(step);
+    return this.prisma.step.create({
+      data: {
+        name,
+        orderIndex: order_index,
+        targetQuantity: target_quantity,
+        productionOrderId,
+      },
+      include: { productionOrder: true },
+    });
   }
 
   findAll() {
-    return this.stepRepository.find({ relations: ['productionOrder'] });
+    return this.prisma.step.findMany({ include: { productionOrder: true } });
   }
 
   async findOne(id: number) {
-    const step = await this.stepRepository.findOne({
+    const step = await this.prisma.step.findUnique({
       where: { id },
-      relations: ['productionOrder'],
+      include: { productionOrder: true },
     });
     if (!step) {
       throw new NotFoundException(`Step #${id} not found`);
@@ -41,26 +40,34 @@ export class StepsService {
   }
 
   async update(id: number, updateStepDto: UpdateStepDto) {
-    const step = await this.findOne(id);
-    const { productionOrderId, ...rest } = updateStepDto;
-    Object.assign(step, rest);
+    await this.findOne(id);
+    const { name, order_index, target_quantity, productionOrderId } =
+      updateStepDto;
 
     if (productionOrderId) {
-      step.productionOrder =
-        await this.findProductionOrderOrThrow(productionOrderId);
+      await this.findProductionOrderOrThrow(productionOrderId);
     }
 
-    return this.stepRepository.save(step);
+    return this.prisma.step.update({
+      where: { id },
+      data: {
+        name,
+        orderIndex: order_index,
+        targetQuantity: target_quantity,
+        productionOrderId,
+      },
+      include: { productionOrder: true },
+    });
   }
 
   async remove(id: number) {
-    const step = await this.findOne(id);
-    return this.stepRepository.remove(step);
+    await this.findOne(id);
+    return this.prisma.step.delete({ where: { id } });
   }
 
   private async findProductionOrderOrThrow(productionOrderId: number) {
-    const productionOrder = await this.productionOrderRepository.findOneBy({
-      id: productionOrderId,
+    const productionOrder = await this.prisma.productionOrder.findUnique({
+      where: { id: productionOrderId },
     });
     if (!productionOrder) {
       throw new NotFoundException(
