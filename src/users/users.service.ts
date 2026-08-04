@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -7,20 +8,21 @@ import { AuthenticatedUser } from '../auth/decorators/current-user.decorator';
 import { branchScope } from '../auth/utils/branch-scope.util';
 
 const SALT_ROUNDS = 10;
+const REGISTRATION_NUMBER_LENGTH = 6;
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createUserDto: CreateUserDto) {
-    const { branch_id, registration_number, name, role, email, password } =
-      createUserDto;
+    const { branch_id, name, role, email, password } = createUserDto;
 
     if (branch_id) {
       await this.findBranchOrThrow(branch_id);
     }
 
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+    const registrationNumber = await this.generateRegistrationNumber();
 
     return this.prisma.user.create({
       data: {
@@ -28,7 +30,7 @@ export class UsersService {
         role,
         email,
         password: hashedPassword,
-        registrationNumber: registration_number,
+        registrationNumber,
         branchId: branch_id,
       },
     });
@@ -58,7 +60,7 @@ export class UsersService {
     currentUser: AuthenticatedUser,
   ) {
     await this.findOne(id, currentUser);
-    const { branch_id, registration_number, password, ...rest } = updateUserDto;
+    const { branch_id, password, ...rest } = updateUserDto;
 
     if (branch_id) {
       await this.findBranchOrThrow(branch_id);
@@ -68,9 +70,6 @@ export class UsersService {
       where: { id },
       data: {
         ...rest,
-        ...(registration_number
-          ? { registrationNumber: registration_number }
-          : {}),
         ...(branch_id ? { branchId: branch_id } : {}),
         ...(password
           ? { password: await bcrypt.hash(password, SALT_ROUNDS) }
@@ -92,5 +91,24 @@ export class UsersService {
       throw new NotFoundException(`Branch #${branchId} not found`);
     }
     return branch;
+  }
+
+  private async generateRegistrationNumber(): Promise<string> {
+    let candidate: string;
+    let exists: boolean;
+
+    do {
+      candidate = randomBytes(REGISTRATION_NUMBER_LENGTH)
+        .toString('hex')
+        .slice(0, REGISTRATION_NUMBER_LENGTH)
+        .toUpperCase();
+      exists = Boolean(
+        await this.prisma.user.findUnique({
+          where: { registrationNumber: candidate },
+        }),
+      );
+    } while (exists);
+
+    return candidate;
   }
 }

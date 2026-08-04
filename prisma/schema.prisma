@@ -37,7 +37,7 @@ model User {
   name               String
   registrationNumber String   @unique @map("registration_number")
   role               String   @default("operator")
-  email              String?  @unique
+  email              String   @unique
   password           String
   createdAt          DateTime @default(now()) @map("created_at")
 

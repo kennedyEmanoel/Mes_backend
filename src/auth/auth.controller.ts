@@ -10,6 +10,6 @@ export class AuthController {
   @Public()
   @Post('login')
   login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+    return this.authService.signIn(loginDto);
   }
 }

@@ -3,7 +3,6 @@ import {
   IsIn,
   IsInt,
   IsNotEmpty,
-  IsOptional,
   IsString,
   MinLength,
   ValidateIf,
@@ -17,16 +16,12 @@ export class CreateUserDto {
   @IsNotEmpty()
   name: string;
 
-  @IsString()
-  @IsNotEmpty()
-  registration_number: string;
-
   @IsIn(USER_ROLES)
   role: UserRole;
 
   @IsEmail()
-  @IsOptional()
-  email?: string;
+  @IsNotEmpty()
+  email: string;
 
   @IsString()
   @MinLength(6)
