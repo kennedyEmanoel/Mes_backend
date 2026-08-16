@@ -33,6 +33,7 @@ export class UsersService {
         registrationNumber,
         branchId: branch_id,
       },
+      omit: { password: true },
     });
   }
 
@@ -40,6 +41,7 @@ export class UsersService {
     return this.prisma.user.findMany({
       where: branchScope(currentUser),
       include: { branch: true },
+      omit: { password: true },
     });
   }
 
@@ -47,6 +49,7 @@ export class UsersService {
     const user = await this.prisma.user.findFirst({
       where: { id, ...branchScope(currentUser) },
       include: { branch: true },
+      omit: { password: true },
     });
     if (!user) {
       throw new NotFoundException(`User #${id} not found`);
@@ -75,12 +78,13 @@ export class UsersService {
           ? { password: await bcrypt.hash(password, SALT_ROUNDS) }
           : {}),
       },
+      omit: { password: true },
     });
   }
 
   async remove(id: number, currentUser: AuthenticatedUser) {
     await this.findOne(id, currentUser);
-    return this.prisma.user.delete({ where: { id } });
+    return this.prisma.user.delete({ where: { id }, omit: { password: true } });
   }
 
   private async findBranchOrThrow(branchId: number) {

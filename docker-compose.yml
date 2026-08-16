@@ -18,6 +18,8 @@ services:
       - DATABASE_HOST=db
       - DATABASE_PORT=5432
       - DATABASE_URL=postgresql://root:root@db:5432/mes_db?schema=public
+    networks:
+      - mes_shared
 
   db:
     image: postgres:16
@@ -31,6 +33,13 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - mes_shared
 
 volumes:
   postgres_data:
+
+networks:
+  mes_shared:
+    name: mes_shared
+    driver: bridge
