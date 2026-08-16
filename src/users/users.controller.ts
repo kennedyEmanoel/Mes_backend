@@ -10,7 +10,6 @@ import {
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/decorators/current-user.decorator';
@@ -19,10 +18,13 @@ import type { AuthenticatedUser } from '../auth/decorators/current-user.decorato
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Public()
+  @Roles('manager', 'analyst', 'admin')
   @Post()
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
+  create(
+    @Body() createUserDto: CreateUserDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.usersService.create(createUserDto, currentUser);
   }
 
   @Get()
@@ -38,7 +40,7 @@ export class UsersController {
     return this.usersService.findOne(+id, currentUser);
   }
 
-  @Roles('admin')
+  @Roles('manager', 'analyst', 'admin')
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -48,7 +50,7 @@ export class UsersController {
     return this.usersService.update(+id, updateUserDto, currentUser);
   }
 
-  @Roles('admin')
+  @Roles('manager', 'analyst', 'admin')
   @Delete(':id')
   remove(
     @Param('id') id: string,

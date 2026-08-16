@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -14,8 +18,21 @@ const REGISTRATION_NUMBER_LENGTH = 6;
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createUserDto: CreateUserDto) {
+  async create(createUserDto: CreateUserDto, currentUser: AuthenticatedUser) {
     const { branch_id, name, role, email, password } = createUserDto;
+
+    if (currentUser.role !== 'admin') {
+      if (role === 'admin') {
+        throw new ForbiddenException(
+          'Only admins can create users with the admin role',
+        );
+      }
+      if (branch_id !== currentUser.branchId) {
+        throw new ForbiddenException(
+          'You can only create users in your own branch',
+        );
+      }
+    }
 
     if (branch_id) {
       await this.findBranchOrThrow(branch_id);
@@ -62,8 +79,21 @@ export class UsersService {
     updateUserDto: UpdateUserDto,
     currentUser: AuthenticatedUser,
   ) {
-    await this.findOne(id, currentUser);
-    const { branch_id, password, ...rest } = updateUserDto;
+    const target = await this.findOne(id, currentUser);
+    const { branch_id, password, role, ...rest } = updateUserDto;
+
+    if (currentUser.role !== 'admin') {
+      if (target.role === 'admin' || role === 'admin') {
+        throw new ForbiddenException(
+          'Only admins can manage users with the admin role',
+        );
+      }
+      if (branch_id !== undefined && branch_id !== currentUser.branchId) {
+        throw new ForbiddenException(
+          'You can only manage users in your own branch',
+        );
+      }
+    }
 
     if (branch_id) {
       await this.findBranchOrThrow(branch_id);
@@ -73,6 +103,7 @@ export class UsersService {
       where: { id },
       data: {
         ...rest,
+        ...(role ? { role } : {}),
         ...(branch_id ? { branchId: branch_id } : {}),
         ...(password
           ? { password: await bcrypt.hash(password, SALT_ROUNDS) }
@@ -83,7 +114,14 @@ export class UsersService {
   }
 
   async remove(id: number, currentUser: AuthenticatedUser) {
-    await this.findOne(id, currentUser);
+    const target = await this.findOne(id, currentUser);
+
+    if (currentUser.role !== 'admin' && target.role === 'admin') {
+      throw new ForbiddenException(
+        'Only admins can remove users with the admin role',
+      );
+    }
+
     return this.prisma.user.delete({ where: { id }, omit: { password: true } });
   }
 
