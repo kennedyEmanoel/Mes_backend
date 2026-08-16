@@ -10,6 +10,7 @@ import { ProductionOrderModule } from './production-order/production-order.modul
 import { ManualRecordModule } from './manual-record/manual-record.module';
 import { BranchesModule } from './branches/branches.module';
 import { ProductsModule } from './products/products.module';
+import { StepTemplatesModule } from './step-templates/step-templates.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
@@ -29,6 +30,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     ManualRecordModule,
     BranchesModule,
     ProductsModule,
+    StepTemplatesModule,
   ],
   controllers: [AppController],
   providers: [

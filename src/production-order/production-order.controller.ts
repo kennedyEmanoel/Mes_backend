@@ -22,8 +22,14 @@ export class ProductionOrderController {
 
   @Roles('manager', 'analyst', 'admin')
   @Post()
-  create(@Body() createProductionOrderDto: CreateProductionOrderDto) {
-    return this.productionOrderService.create(createProductionOrderDto);
+  create(
+    @Body() createProductionOrderDto: CreateProductionOrderDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.productionOrderService.create(
+      createProductionOrderDto,
+      currentUser,
+    );
   }
 
   @Get()

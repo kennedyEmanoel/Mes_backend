@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductionOrderDto } from './dto/create-production-order.dto';
 import { UpdateProductionOrderDto } from './dto/update-production-order.dto';
@@ -9,7 +13,10 @@ import { branchScope } from '../auth/utils/branch-scope.util';
 export class ProductionOrderService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createProductionOrderDto: CreateProductionOrderDto) {
+  async create(
+    createProductionOrderDto: CreateProductionOrderDto,
+    currentUser: AuthenticatedUser,
+  ) {
     const {
       op_number,
       branch_id,
@@ -19,6 +26,12 @@ export class ProductionOrderService {
       target_quantity,
       status,
     } = createProductionOrderDto;
+
+    if (currentUser.role !== 'admin' && branch_id !== currentUser.branchId) {
+      throw new ForbiddenException(
+        'You can only create production orders in your own branch',
+      );
+    }
 
     await this.findBranchOrThrow(branch_id);
     await this.findProductOrThrow(product_id);
@@ -70,6 +83,16 @@ export class ProductionOrderService {
       target_quantity,
       status,
     } = updateProductionOrderDto;
+
+    if (
+      currentUser.role !== 'admin' &&
+      branch_id !== undefined &&
+      branch_id !== currentUser.branchId
+    ) {
+      throw new ForbiddenException(
+        'You can only manage production orders in your own branch',
+      );
+    }
 
     if (branch_id) {
       await this.findBranchOrThrow(branch_id);

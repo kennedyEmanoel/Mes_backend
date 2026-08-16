@@ -1,9 +1,9 @@
-import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, Min } from 'class-validator';
 
 export class CreateStepDto {
-  @IsString()
+  @IsInt()
   @IsNotEmpty()
-  name: string;
+  step_template_id: number;
 
   @IsInt()
   @Min(0)

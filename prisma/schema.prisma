@@ -44,8 +44,9 @@ model User {
   branchId Int?    @map("branchId")
   branch   Branch? @relation(fields: [branchId], references: [id])
 
-  manualRecords ManualRecord[]
-  refreshTokens RefreshToken[]
+  manualRecords   ManualRecord[]
+  refreshTokens   RefreshToken[]
+  stepAssignments StepAssignment[]
 
   @@map("users")
 }
@@ -96,18 +97,46 @@ model ProductionOrder {
   @@map("production_orders")
 }
 
+model StepTemplate {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  steps Step[]
+
+  @@map("step_templates")
+}
+
 model Step {
-  id             Int    @id @default(autoincrement())
-  name           String
-  orderIndex     Int    @map("order_index")
-  targetQuantity Int    @default(0) @map("target_quantity")
+  id             Int @id @default(autoincrement())
+  orderIndex     Int @map("order_index")
+  targetQuantity Int @default(0) @map("target_quantity")
+
+  stepTemplateId Int          @map("stepTemplateId")
+  stepTemplate   StepTemplate @relation(fields: [stepTemplateId], references: [id])
 
   productionOrderId Int             @map("productionOrderId")
   productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
 
   manualRecords ManualRecord[]
+  assignments   StepAssignment[]
 
   @@map("steps")
+}
+
+model StepAssignment {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  stepId Int  @map("stepId")
+  step   Step @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  userId Int  @map("userId")
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([stepId, userId])
+  @@map("step_assignments")
 }
 
 model ManualRecord {
