@@ -1,0 +1,27 @@
+# Usa a imagem oficial do Node na versão 20 (leve)
+FROM node:20-alpine
+
+# Define o diretório de trabalho
+WORKDIR /usr/src/app
+
+# Copia os arquivos de configuração
+COPY package*.json ./
+COPY prisma ./prisma/
+
+# Instala as dependências
+RUN npm install
+
+# Copia o resto do código da aplicação
+COPY . .
+
+# 1. Gera o cliente do Prisma (Corrige o erro de compilação)
+RUN npx prisma generate
+
+# 2. Faz o build de produção do NestJS
+RUN npm run build
+
+# Expõe a porta padrão (o Render injeta a própria porta dinâmica depois)
+EXPOSE 3000
+
+# 3. Comando Múltiplo: Cria as tabelas no Neon DB e inicia a API em produção
+CMD npx prisma db push && npm run start:prod
