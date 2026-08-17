@@ -7,6 +7,7 @@ import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { RegisterUserDto } from './dto/register-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AuthenticatedUser } from '../auth/decorators/current-user.decorator';
 import { branchScope } from '../auth/utils/branch-scope.util';
@@ -38,19 +39,26 @@ export class UsersService {
       await this.findBranchOrThrow(branch_id);
     }
 
-    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-    const registrationNumber = await this.generateRegistrationNumber();
+    return this.createUserRecord({
+      name,
+      role,
+      email,
+      password,
+      branchId: branch_id,
+    });
+  }
 
-    return this.prisma.user.create({
-      data: {
-        name,
-        role,
-        email,
-        password: hashedPassword,
-        registrationNumber,
-        branchId: branch_id,
-      },
-      omit: { password: true },
+  async register(registerUserDto: RegisterUserDto) {
+    const { name, email, password, branch_id } = registerUserDto;
+
+    await this.findBranchOrThrow(branch_id);
+
+    return this.createUserRecord({
+      name,
+      role: 'operator',
+      email,
+      password,
+      branchId: branch_id,
     });
   }
 
@@ -123,6 +131,29 @@ export class UsersService {
     }
 
     return this.prisma.user.delete({ where: { id }, omit: { password: true } });
+  }
+
+  private async createUserRecord(data: {
+    name: string;
+    role: string;
+    email: string;
+    password: string;
+    branchId?: number;
+  }) {
+    const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
+    const registrationNumber = await this.generateRegistrationNumber();
+
+    return this.prisma.user.create({
+      data: {
+        name: data.name,
+        role: data.role,
+        email: data.email,
+        password: hashedPassword,
+        registrationNumber,
+        branchId: data.branchId,
+      },
+      omit: { password: true },
+    });
   }
 
   private async findBranchOrThrow(branchId: number) {
