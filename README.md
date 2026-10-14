@@ -19,6 +19,5 @@ No sistema, a **Ordem de Produção (OP)** funciona como o coração de todo o p
 * **Banco de Dados:** PostgreSQL
 * **ORM:** TypeORM
 
-  ##Frontend
-  
+## Frontend:
 https://github.com/kennedyEmanoel/Mes_frontend
